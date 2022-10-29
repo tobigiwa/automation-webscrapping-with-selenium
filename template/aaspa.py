@@ -50,7 +50,7 @@ def creating_log(script_name: str, log_folder_path: Optional[str] = None):
     else:
         os.makedirs(log_folder_path)
 
-    log_path: str = os.path.join(os.getcwd(), log_folder_path, f'{script_name}.log')
+    log_path = os.path.join(os.getcwd(), log_folder_path, f'{script_name}.log')
 
     logger = logging.getLogger(script_name)
     logger.setLevel(logging.DEBUG)
@@ -73,36 +73,18 @@ from GlobalVariable import GlobalVariable
 warnings.filterwarnings("ignore")
 
 #*******************************************************************************************************************
-def date_transforamtion(sc_date: str) -> Union[tuple,str]:
+def date_transforamtion(start:str, end:str) -> Tuple[str,str]:
     "Tranfroms date to required formats."
 
-    match = re.search('([a-zA-Z]+)\s*(.+),\s*(\d\d\d\d)', sc_date)
-    if match:
-        day1, day2 = match.group(2).split('-')[0].strip(), match.group(2).split('-')[1].strip()
-        start_date = f'{day1} {match.group(1)} {match.group(3)}'
-        end_date = f'{day2} {match.group(1)} {match.group(3)}'
-        start_date = datetime.strptime(start_date, '%d %B %Y')
-        end_date = datetime.strptime(end_date, '%d %B %Y')
-        print(start_date, end_date,)
-        if start_date < datetime.now():
-            print('PAST EVENT')
-            return 'PAST EVENT'
-        else:
-            print('RELEVANT EVENT')
-            print(start_date.strftime('%Y-%m-%d'), end_date.strftime('%Y-%m-%d'))
+    start1 = start.split(',')[1].strip() + ' ' + start.split(',')[2].strip()
+    start_date = datetime.strptime(start1, '%B %d %Y').strftime('%Y-%m-%d')
 
-            return start_date.strftime('%Y-%m-%d'), end_date.strftime('%Y-%m-%d')
-    else:
-        return 'MATCH FAILED'
+    end1 = end.split(',')[1]
+    end2 = re.search('\d\d\d\d', f"{end.split(',')[2]}")
+    end_date = end1.strip() + ' ' + str(end2.group())
+    end_date = datetime.strptime(end_date, '%B %d %Y').strftime('%Y-%m-%d')
 
-
-def event_mode(mode: str) -> str:
-    "Confirms event mode."
-
-    if 'virtual' in mode.lower():
-        return 'ONLINE'
-    else:
-        return ''
+    return start_date, end_date
 
 #*******************************************************************************************************************
 
@@ -155,7 +137,7 @@ try:
                 logger.error(f'{self.get_event.__name__} Function failed', exc_info=True)
             else:
                 try:
-                    all_event = self.browser.find_elements(By.CSS_SELECTOR, '.MuiGrid-grid-lg-3.css-1etv89n')
+                    all_event = self.browser.find_elements(By.CSS_SELECTOR, '.event')
                 except Exception as e:
                     self.error_msg_from_class += '\n' + str(e)
                     logger.error(f'{self.get_event.__name__} Function failed', exc_info=True)
@@ -166,8 +148,8 @@ try:
         def click_event(self, index:int) -> NoReturn:
             "Uses selenium ActionChains to navigate to single event by index and clicks it."
             try:
-                time.sleep(1.5)
-                all_events = self.browser.find_elements(By.CSS_SELECTOR, '.MuiGrid-grid-lg-3.css-1etv89n')
+                time.sleep(1)
+                all_events = self.browser.find_elements(By.CSS_SELECTOR, '.event')
             except Exception as e:
                 self.error_msg_from_class += '\n' + str(e)
                 logger.error(f'{self.click_event.__name__} Function failed', exc_info=True)
@@ -178,157 +160,188 @@ try:
                 except Exception as e:
                     self.error_msg_from_class += '\n' + str(e)
                     logger.error(f'{self.click_event.__name__} Function failed', exc_info=True)
-                else:
-                    time.sleep(0.5)
 
 
-        def scrapped_one(self) -> Tuple[str, str, str, str, str]:
-            """
-            Scrapes and return a tuple containing the current page URL, event name, event date, event location, event mode respectively.
-            Scraping individual data was not possible as all data was within ths same paragraph.
-            """
+        def event_name(self) -> str:
+            "Scrapes and return event name."
             try:
-                time.sleep(1.5)
-                sc_one = self.browser.find_elements(By.CSS_SELECTOR, 'main p')
+                sc_event_name = self.browser.find_element(By.CSS_SELECTOR, '#ac-event-title').text
             except Exception as e:
                 self.error_msg_from_class += '\n' + str(e)
-                logger.error(f'{self.scrapped_one.__name__} Function failed', exc_info=True)
+                logger.error(f'{self.event_name.__name__} Function failed', exc_info=True)
             else:
-                needed = sc_one[:4]
-                del sc_one
-                rf_needed = [i.text for i in needed]
-                curr_url = self.browser.current_url
-                sc_eventname = rf_needed[0]
-                sc_eventdate = date_transforamtion(rf_needed[1])
-                sc_eventlocation = rf_needed[2].split(',')[0], rf_needed[2].split(',')[1]
-                sc_eventmode = event_mode(rf_needed[3])
-                return curr_url, sc_eventname, sc_eventdate, sc_eventlocation, sc_eventmode
+                return sc_event_name
+
+
+        def event_date(self) -> Tuple[str, str]:
+            "Scrapes and return event date."
+            try:
+                sc_event_start_date = self.browser.find_element(By.CSS_SELECTOR, '.start strong').text
+                sc_event_end_date =  self.browser.find_element(By.CSS_SELECTOR, '.end').text
+            except Exception as e:
+                self.error_msg_from_class += '\n' + str(e)
+                logger.error(f'{self.event_name.__name__} Function failed', exc_info=True)
+            else:
+                rf_date = date_transforamtion(sc_event_start_date, sc_event_end_date)
+                if rf_date:
+                    return rf_date
+                else:
+                    return '', ''
 
         
         def event_info(self) -> str:
             "Scrapes and return event info."
             try:
-                sc_event_info = self.browser.find_element(By.CSS_SELECTOR, '#about p:nth-child(2)').text
+                sc_event_info = self.browser.find_element(By.CSS_SELECTOR, '.details p').text
             except Exception as e:
                 self.error_msg_from_class += '\n' + str(e)
                 logger.error(f'{self.event_info.__name__} Function failed', exc_info=True)
             else:
-                return sc_event_info
+                return ' '.join(sc_event_info.split('.')[:2])
 
 
         def event_timing(self) -> json:
             "Scrapes and return a JSONified format of event timing."
             try:
-                sc_event_timing = self.browser.find_elements(By.CSS_SELECTOR, '#agenda .css-1dwb3pr')
-                sc_event_timing= [i.text for i in sc_event_timing]
+                sc_event_timing = self.browser.find_element(By.CSS_SELECTOR, '.end').text
             except Exception as e:
                 self.error_msg_from_class += '\n' + str(e)
                 logger.error(f'{self.event_timing.__name__} Function failed', exc_info=True)
             else:
-                if sc_event_timing:
-                    start_time = datetime.strptime(sc_event_timing[0].split('-')[0].strip(), '%H.%M').strftime('%I:%M%p')
-                    end_time = datetime.strptime(sc_event_timing[-1].split('-')[1].strip(), '%H.%M').strftime('%I:%M%p')
+                match = re.search('([\d\d]+:\d\d \w\w)\s+(\(\w\w\w\))', sc_event_timing)
+                if match:
                     return [
                             json.dumps(
                                 dict(type='general',
-                                    Start_time=start_time,
-                                    end_time=end_time,
-                                    timezone='',
+                                    Start_time=match.group(1),
+                                    end_time='',
+                                    timezone=match.group(2),
                                     days='all'))
                         ]
                 else:
                     return ''
 
+
         def event_ticket_list(self) -> json:
-            "Scrapes and return a JSONified format of event ticket_list."
-
+            "Scrapes and return a JSONified format of event timing."
             try:
-                sc_event_ticketlist  = self.browser.find_elements(By.CSS_SELECTOR, '#plans .items-center')
-            except Exception as e:
-                self.error_msg_from_class += '\n' + str(e)
-            else:
-                hold:List[str ] = []
-                sc_ticketlist = [i.text for i in sc_event_ticketlist]
-                type = sc_ticketlist[0::3]
-                fee = sc_ticketlist[1::3]
-                for i in zip(type, fee):
-                    temp_use = dict(type=i[0], price=i[1].replace('$', '', 1).strip(), currency=i[1][0])
-                    hold.append(temp_use.copy())
-                if hold:
-                    return json.dumps(hold, ensure_ascii=False)
-                else:
-                    return ''
-
-
-        def event_venue(self) -> str:
-            "Scrapes and return event venue."
-            try:
-                sc_event_venue  = self.browser.find_element(By.CSS_SELECTOR, '#venue div div p').text
-            except Exception as e:
-                self.error_msg_from_class += '\n' + str(e)
-                logger.error(f'{self.event_venue.__name__} Function failed', exc_info=True)
-            else:
-                if str(sc_event_venue).strip().lower() in ['venue will be updated soon.', 'venue will be updated soon..', 'Venue will be updated soon..', 'Venue will be updated soon.']:
-                    return ''
-                else:
-                    return sc_event_venue
-
-
-        def event_speakerlist(self) -> json:
-            "Scrapes and return a JSONified format of event speaker_list."
-            try:
-                sc_1  = self.browser.find_elements(By.CSS_SELECTOR, '#agenda h6')
-                sc_2  = self.browser.find_elements(By.CSS_SELECTOR, '#agenda h6+ p')
-                s_3 = [i.text for i in sc_1]
-                s_4 = [i.text for i in sc_2]
+                soup = bs(self.browser.page_source,'html.parser')
             except Exception as e:
                 self.error_msg_from_class += '\n' + str(e)
                 logger.error(f'{self.event_ticket_list.__name__} Function failed', exc_info=True)
             else:
-                l: List[str] = []
-                for i in zip(s_3, s_4):
-                    if i[0] not in ['REGISTRATIONS','STAR','Speaker','SCIENCE CAFE','LUNCH BREAK']:
-                        if i[0] == '-':
-                            continue
-                        temp_use = dict(name=i[0], title=i[1].replace('-', '', 1), link='')
-                        l.append(temp_use.copy())
-                if l:
-                    return json.dumps(l, ensure_ascii=False)
+                all_text = ' '.join(soup.body.text.split())
+                match = re.search('(AASPA members).+(\$\d+).+(\$\d+).+(non-AASPA members).*', all_text)
+                match2 = re.search('.+(\$\d+).+( AASPA members).+(\$\d+).+(non AASPA members).*', all_text)
+                match3 = re.search('(\$\d+)', all_text)
+                if match:
+                    temp_use = dict(type=match.group(1), price=match.group(2).replace('$', '', 1).strip(), currency=match.group(2)[0])
+                    temp_use2 = dict(type=match.group(4), price=match.group(3).replace('$', '', 1).strip(), currency=match.group(3)[0])
+                    return json.dumps([temp_use, temp_use2])
+                elif match2:
+                    temp_use = dict(type=match2.group(2), price=match2.group(1).replace('$', '', 1).strip(), currency=match2.group(1)[0])
+                    temp_use2 = dict(type=match2.group(4), price=match2.group(3).replace('$', '', 1).strip(), currency=match2.group(3)[0])
+                    return json.dumps([temp_use, temp_use2])
+                elif match3:
+                    temp_use = dict(type='paid', price=match3.group(1).replace('$', '', 1).strip(), currency=match3.group(1)[0])
+                    return json.dumps([temp_use])
                 else:
                     return ''
 
 
-        def google_map_url(self, search_word: str) -> str:
-                """
-                Returns the result of a Google Maps location search of the parameter.
-                This implementation creates a new tab for it job, closes it when done and switch back handle to previous tab.
-                """
+
+        def event_mode(self, sc_event_name:str) -> Tuple[str, str, str]:
+            """
+            Checks the mode of the events.
+            Positional parameter is event name.
+            Checks for  a selector ".o-details-block__details-info div" in the page for location.
+            If element not found, check first paragraph for word "online", "webinar" and "virtual".
+            If that returns None, check for another instance or other isntances based on page.
+            I agree, a rather tedious and non-friendly and reliably one.
+            """
+            if 'online' in sc_event_name.lower() or 'virtual' in sc_event_name.lower() or 'webinar' in sc_event_name.lower():
+                return 'ONLINE'
+
+            try:
+                mode1 = self.browser.find_element(By.CSS_SELECTOR, '.o-details-block__details-info div').text
+            except NoSuchElementException or Exception as e:
+                mode1 = ''
+                self.error_msg_from_class += '\n' + str(e)
+                logger.error(f'{self.event_mode.__name__} Function failed', exc_info=True)
                 try:
-                    if search_word == 'ONLINE':
-                        return 'ONLINE'
-
-                    curr_tab = self.browser.current_window_handle
-                    self.browser.switch_to.new_window('tab')
-
-                    self.browser.get('http://google.com')
-                    search = self.wait_5sec.until(
-                        EC.presence_of_element_located((By.NAME, 'q')))
-
-                    search.send_keys(search_word)
-                    search.send_keys(Keys.RETURN)
-
-                    map_url = WebDriverWait(self.browser, 3).until(
-                        EC.element_to_be_clickable((By.LINK_TEXT, 'Maps')))
-                    map_url.click()
-                    time.sleep(0.5)
-                    map_url = self.browser.current_url
-                
+                    all_text = self.browser.find_element(By.CSS_SELECTOR, '.details.inner-content').text
                 except Exception as e:
-                    logger.exception(f'function failed')
+                    self.error_msg_from_class += '\n' + str(e)
+                    logger.error(f'{self.event_mode.__name__} Function failed', exc_info=True)
                 else:
-                    self.browser.close()
-                    self.browser.switch_to.window(curr_tab)
-                    return map_url
+                    if 'online' in all_text.lower() or 'virtual' in all_text.lower() or 'webinar' in all_text.lower():
+                        return 'ONLINE'
+                    else:
+                        try:
+                            mode2 = self.browser.find_element(By.CSS_SELECTOR, '.details.inner-content h5').text
+                        except Exception as e:
+                            self.error_msg_from_class += '\n' + str(e)
+                            logger.error(f'{self.event_mode.__name__} Function failed', exc_info=True)
+                        else:
+                            rf_mode2 = mode2.split('|')[1].strip()
+                            venue, city = rf_mode2.split(',')[0], rf_mode2.split(',')[1]
+                            return venue, city, ''
+            else:
+                if mode1:
+                    print('mode1----', mode1)
+                    rf_mode1 = mode1.split(',')
+                    location = rf_mode1[0].replace('\n', '').strip(), rf_mode1[1].replace('\n', ' ').strip()
+                    venue = location[0]
+                    match =  re.search('(.+\d+)(.+)', location[1])
+                    city, country = match.group(1), match.group(2)
+                    return venue, city, country
+            
+
+        def event_speakerlist(self) -> json:
+            "Scrapes and return a JSONified format of event speaker_list."
+            try:
+                sc_1  = self.browser.find_element(By.CSS_SELECTOR, '.member').text
+            except Exception as e:
+                    self.error_msg_from_class += '\n' + str(e)
+                    logger.error(f'{self.event_ticket_list.__name__} Function failed', exc_info=True)
+                    return ''
+            else:
+                name = sc_1.split('\n')[0]
+                title = ' '.join(sc_1.split('\n')[1:])
+                return json.dumps([dict(name=name, title=title, link='')])
+
+
+        def google_map_url(self, search_word: str) -> str:
+            """
+            Returns the result of a Google Maps location search of the parameter.
+            This implementation creates a new tab for it job, closes it when done and switch back handle to previous tab.
+            """
+            try:
+                if search_word == 'ONLINE':
+                    return 'ONLINE'
+
+                curr_tab = self.browser.current_window_handle
+                self.browser.switch_to.new_window('tab')
+
+                self.browser.get('http://google.com')
+                search = self.wait_5sec.until(
+                    EC.presence_of_element_located((By.NAME, 'q')))
+
+                search.send_keys(search_word)
+                search.send_keys(Keys.RETURN)
+
+                map_url = WebDriverWait(self.browser, 3).until(
+                    EC.element_to_be_clickable((By.LINK_TEXT, 'Maps')))
+                map_url.click()
+                time.sleep(0.5)
+                map_url = self.browser.current_url
+            
+            except Exception as e:
+                logger.exception(f'function failed')
+            else:
+                self.browser.close()
+                self.browser.switch_to.window(curr_tab)
+                return map_url
 
 
         def back_page(self) -> NoReturn:
@@ -338,7 +351,7 @@ try:
 
 
 
-    base_url = 'https://www.starconferences.org/conferences'
+    base_url = 'https://www.aaspa.org/events/?&Page='
 
     with ScrapeEvent() as handler:
         " This context manager handles the ScrapeEvent() Class object and handles it teardown for any resource(s) used."
@@ -357,45 +370,28 @@ try:
                 handler.click_event(i)
                 time.sleep(1)
 
-                # 1 & 2 BLOCK CODE: scraping attribute scrappedUrl and eventname
+                # 1 BLOCK CODE: scraping attribute scrappedUrl
+                scrappedUrl = handler.browser.current_url
+
+                # 2 BLOCK CODE: scraping attribute eventname
                 try:
-                    many_data = handler.scrapped_one()
+                    eventname = handler.event_name()
                 except Exception as e:
                     error += '\n' + str(e)
-                    logger.error(f'{handler.scrapped_one.__name__} Function failed',exc_info=True)
-                else:
-                    print('many-data[2]----', many_data[2])
-                    if many_data[2] == 'PAST EVENT':
-                        print('checks at past event')
-                        handler.back_page()
-                        continue
-                    else:
-                        try:
-                            scrappedUrl = many_data[0]
-                            eventname = many_data[1]
-                            print(eventname)
-                        except Exception as e:
-                            error += '\n' + str(e)
-                            scrappedUrl = ''
-                            eventname = ''
-
+                    logger.error(f'{handler.event_name.__name__} Function failed', exc_info=True)
+                    eventname = ''
                         
                 # 3 & 4 BLOCK CODE: scraping attribute startdate and enddate
                 try:
-                    if many_data[2] == 'MATCH FAILED':
-                        print('MATCH FAILED')
-                        print(many_data[1])
-                        print(many_data)
-                        handler.back_page()
-                        continue
-                    else:
-                        sc_date = many_data[2]
-                        startdate = sc_date[0]
-                        enddate = sc_date[1]
+                    date = handler.event_date()
+                    startdate = date[0]
+                    enddate = date[1]
                 except Exception as e:
                     error += '\n' + str(e)
+                    logger.error(f'{handler.event_date.__name__} Function failed', exc_info=True)
                     startdate = ''
                     enddate = ''
+                
 
                 # 5 BLOCK CODE: scraping attribute timing
                 try:
@@ -424,13 +420,13 @@ try:
                     ticketlist = ''
 
                 # 8 BLOCK CODE: scraping attribute orgProfile
-                orgProfile = 'STAR Conferences is extremely passionate in 3C’s, Creating, Connections and Conversions among research scientists and researchers as leading experts to integrate B2B businesses among individuals, and companies to connect, communicate, cultivate, and convert research ideas elegantly and efficiently for human mankind.'
+                orgProfile = 'Our mission is to provide every member with services, resources and information vital to successful school human resource practices in the interest of students.'
 
                 # 9 BLOCK CODE: scraping attribute orgName
-                orgName = 'STAR Conferences'
+                orgName = 'AASPA: American Association of School Personnel Administrators'
 
                 # 10 BLOCK CODE: scraping attribute orgWeb
-                orgWeb = 'https://www.starconferences.org/'
+                orgWeb = 'https://www.aaspa.org/'
 
                 # 11 BLOCK CODE: scraping attribute logo
                 logo = ''
@@ -447,38 +443,37 @@ try:
                 #15 BLOCK CODE: scraping attribute category
                 category = ''
 
-                # 16 BLOCK CODE: scraping attribute city
                 try:
-                    city = many_data[3][0]
+                    mode = handler.event_mode(str(eventname))
                 except Exception as e:
                     error += '\n' + str(e)
-                    city = ''
+                    logger.error(f'{handler.event_mode.__name__} Function failed', exc_info=True)
 
-                # 17 BLOCK CODE: scraping attribute country
+                # 16, 17 & 18 BLOCK CODE: scraping attribute city, country, venue
                 try:
-                    country = many_data[3][1]
+                    if isinstance(mode, tuple):
+                        venue = mode[0]
+                        city = mode[1]
+                        country = mode[2]
+                    elif isinstance(mode, str):
+                        if mode == 'ONLINE':
+                            venue = ''
+                            city = ''
+                            country = ''
                 except Exception as e:
                     error += '\n' + str(e)
+                    logger.error(f'{handler.event_mode.__name__} Function failed', exc_info=True)
+                    venue = ''
+                    city = ''
                     country = ''
 
-                # 18 BLOCK CODE: scraping attribute venuev
-                try:
-                    sc_venue = many_data[4]
-                    if sc_venue == 'ONLINE':
-                        venue = ''
-                    else:
-                        venue = handler.event_venue()
-                except Exception as e:
-                    error += '\n' + str(e)
-                    logger.error(f'{handler.event_venue.__name__} Function failed', exc_info=True)
-                    venue = ''
 
                 # 19 BLOCK CODE: scraping attribute event_website
                 event_website = scrappedUrl
 
                 # 20 BLOCK CODE: scraping attribute googlePlaceUrl
                 try:
-                    if sc_venue == 'ONLINE' or not venue:
+                    if not venue:
                         googlePlaceUrl = ''
                     else:
                         sc_search_word = f'{venue} {city} {country}'
@@ -490,12 +485,11 @@ try:
                     googlePlaceUrl = ''
 
                 # 21 BLOCK CODE: scraping attribute ContactMail
-                ContactMail = json.dumps(['customerservice@starconferences.org'])
+                ContactMail = ''
 
                 # 22 BLOCK CODE: scraping attribute Speakerlist
                 try:
                     Speakerlist = handler.event_speakerlist()
-                    print('speakerlist ----', Speakerlist)
                 except Exception as e:
                     error += '\n' + str(e)
                     logger.error(f'{handler.event_speakerlist.__name__} Function failed', exc_info=True)
@@ -503,7 +497,7 @@ try:
 
                 # 23 BLOCK CODE: scraping attribute online_event
                 try:
-                    if sc_venue == 'ONLINE':
+                    if not venue:
                         online_event = 1
                     else:
                         online_event = 0
@@ -538,3 +532,4 @@ except Exception as e:
 GlobalFunctions.update_scrpping_execution_status(file_name, error)
 
 # BYE!!!.
+
