@@ -334,7 +334,7 @@ try:
         def contact_mail(self) -> str:
             "Returns contact_mail"
             mail = 'rxinfo@reedexpo.co.uk'
-            return [json.dumps(mail)]
+            return json.dumps([mail])
 
 
         def next_page(self):
