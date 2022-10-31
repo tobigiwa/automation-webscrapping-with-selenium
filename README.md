@@ -16,7 +16,7 @@ Interested in learning the Python Module?, check out this [Real Python Guide.](h
 
 ## Project Objective
 
-Automating and designing a maintainable codebase for scraping mutiple webpages using Selenium and BeautifulSoup with python. `Maintainable` is the inspiration for this codebase design.
+Automating and designing a maintainable codebase for scraping mutiple webpages using Selenium and BeautifulSoup with python. `Maintainable` is the inspiration for this codebase design, hence why the Python `Logging Module` is also included.
 
 **So, ideally, the program should be splitted in four scripts, but since my client for this job requested them in single script, it in one now. You can divide and resolve import :+1: :+1:.**
 
@@ -32,9 +32,13 @@ The basic schema design is stated below:
 
 See, how maintainabilitiy is easy :+1: :+1:.
 
+**NB:** Not all scripts are logged, so i'll recommend taking a look at aaspa.py, rhemda.py or starconferences.py.
+
 ## Running the script
 
 Run `pip install -r requirement.txt` in your activated virtualenv to have all needed dependencies.
+
+The scraping are configured to run headless (i.e without a broswer GUI), but you can comment out it out.
 
 Run `python <python script> <tsv filename> <browser port> ` to execute the program or however you have rearranged yours.
 
