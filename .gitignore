@@ -1,10 +1,8 @@
-/batch5
-/log_folder
-/parsing
-/parsing_folder
-/__pycache__
-/source_py
-/template
-/tsv-files
-/zachary
+__pycache__/
+source_py/
+template/
+tsv-files/
+zachary/
+log_folder/
 *.ipynb
+*.vscode
