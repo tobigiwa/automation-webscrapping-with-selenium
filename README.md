@@ -2,15 +2,15 @@
 
 ## Project Description
 
-This project consist of mutiple python files demonstrating elaborate webscraping programs that spans mutilple webpages using Selenium and BeautifulSoup with Python. The code design is rooted in making automation elegant with little hassle on re-application on any other needs. The codebase is well documentated and fully type-annotated using the Python3.6> `Typing Module`, i.e
+This project consist of mutiple python files demonstrating elaborate webscraping programs that spans mutilple webpages using `Selenium` and `BeautifulSoup` with `Python`. The code design is rooted in making automation elegant with little hassle on re-application on any other needs. The codebase is well documentated, logged with the Python `Logging` module and fully type-annotated using the Python3.6> `Typing Module`, i.e
 
-> from typing import List, Dict, Optional, Union, Tuple, Callable, Sequence, Noreturn
+> **from typing import List, Dict, Optional, Union, Tuple, Callable, Sequence, Noreturn**
 
-> remark_on_job: str = 'Good'
+> **remark_on_job: str = 'Good'**
 
-> container: List[Dict] = []
+> **container: List[Dict] = []**
 
-> def func(num: int, input: Optional[Callable] = None, Union[Sequence, int]) -> NoReturn: ...
+> **def func(num: int, input: Optional[Callable] = None, Union[Sequence, int]) -> NoReturn: ...**
 
 Interested in learning the Python Module?, check out this [Real Python Guide.](https://realpython.com/python-type-checking/)
 
@@ -42,6 +42,6 @@ The scraping are configured to run headless (i.e without a broswer GUI), but you
 
 Run `python <python script> <tsv filename> <browser port> ` to execute the program or however you have rearranged yours.
 
-If you prefer Pandas (as i did, not my client though), store your scraped data in dictionary format,a list of dictionaries is convertible into a Pandas Dataframe which is then written to tab seperated file format.
+If you prefer Pandas (as i did, not my client though), store your scraped data in dictionary format,a list of dictionaries is convertible into a Pandas Dataframe which is then written to tab seperated file format. If yow however decide to run the any of the python files, it expected that the data in it tsv would be different from your cuurent run.
 
 I do hope my code brings good readability. :+1: :+1:
