@@ -1,7 +1,7 @@
 __pycache__/
 source_py/
 template/
-tsv-files/
+tsv-files/*.tsv
 zachary/
 log_folder/
 *.ipynb
