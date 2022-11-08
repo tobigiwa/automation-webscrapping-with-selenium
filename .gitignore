@@ -1,4 +1,5 @@
 __pycache__/
+.idea/
 source_py/
 template/
 tsv-files/*.tsv
@@ -6,4 +7,3 @@ zachary/
 log_folder/
 *.ipynb
 *.vscode
-requirement.txt
