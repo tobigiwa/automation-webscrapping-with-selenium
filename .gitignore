@@ -6,3 +6,4 @@ zachary/
 log_folder/
 *.ipynb
 *.vscode
+.idea/
