@@ -127,13 +127,13 @@ try:
             "Hanles the teardown of the context manager."
             self.browser.quit()
 
-        def dispatch(self, class_name:str, finder:webdriver = By.CSS_SELECTOR) -> str:
-            "API call for Selenium webdriver.find_element()"
-            return self.browser.find_element(finder, class_name)
+        def dispatch(self, locator:str, strategy:webdriver = By.CSS_SELECTOR) -> str:
+            "API call for selenium.webdriver.remote.webelement.find_element(strategy, locator)"
+            return self.browser.find_element(strategy, locator)
 
-        def dispatchList(self, class_name:str, finder:webdriver = By.CSS_SELECTOR)  -> List:
-            "API call for Selenium webdriver.find_elements()"
-            return self.browser.find_elements(finder, class_name)
+        def dispatchList(self, locator:str, strategy:webdriver = By.CSS_SELECTOR)  -> List:
+            "API call for selenium.webdriver.remote.webelement.find_elements(strategy, locator)"
+            return self.browser.find_elements(strategy, locator)
 
 
         def get_events(self, url: str) -> List[str]:
@@ -296,7 +296,7 @@ try:
         def contactmail(self) -> json:
             "Scrapes and return a JSONified format of event contact email(s)."
             try:
-                sc_event_contactmail = self.dispatch('email',finder=By.LINK_TEXT).get_attribute('href').replace('mailto:', '').replace('https://pac.org/', '')
+                sc_event_contactmail = self.dispatch('email',strategy=By.LINK_TEXT).get_attribute('href').replace('mailto:', '').replace('https://pac.org/', '')
             except NoSuchElementException: sc_event_contactmail = ''
             except Exception as e: 
                 self.error_msg_from_class += '\n' + str(e) 
@@ -342,19 +342,8 @@ try:
                 curr_tab = self.browser.current_window_handle
                 self.browser.switch_to.new_window('tab')
 
-                self.browser.get('http://google.com')
-                search = self.wait_5sec.until(
-                    EC.presence_of_element_located((By.NAME, 'q')))
+                map_url = GlobalFunctions.get_google_map_url(search_word, self.browser)
 
-                search.send_keys(search_word)
-                search.send_keys(Keys.RETURN)
-
-                map_url = WebDriverWait(self.browser, 3).until(
-                    EC.element_to_be_clickable((By.LINK_TEXT, 'Maps')))
-                map_url.click()
-                time.sleep(0.5)
-                map_url = self.browser.current_url
-            
             except Exception as e:
                 self.error_msg_from_class += '\n' + str(e)
                 logger.error(f'{self.google_map_url.__name__} Function failed', exc_info=True)
@@ -514,7 +503,7 @@ try:
                     else:
                         sc_search_word = f'{venue} {city}'
                         gg_map = handler.google_map_url(sc_search_word)
-                        googlePlaceUrl = gg_map
+                        googlePlaceUrl = gg_map[0]
                 except Exception as e:
                     error += '\n' + str(e)
                     logger.error(f'{handler.google_map_url.__name__} Function failed', exc_info=True)
