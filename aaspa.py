@@ -12,7 +12,7 @@ from datetime import datetime
 from random import randint
 from typing import Any, List, NoReturn, Optional, Tuple, Union
 
-import requests
+import requests, regex
 #loads necessary libraries
 from bs4 import BeautifulSoup as bs
 from selenium import webdriver
@@ -33,11 +33,10 @@ sys.path.insert(
 #*******************************************************************************************************************
 import logging
 
-
 def creating_log(script_name: str, log_folder_path: Optional[str] = None):
     """ 
     Implements the logging module and returns the logger object. 
-    Takes a string positional parameter fro log file name and a keyword parameter for log file path. 
+    Takes a string positional parameter for log file name and a keyword parameter for log file path. 
     Default log file path folder 'log_folder' and each code run clears the last log.
     """
 
@@ -45,18 +44,19 @@ def creating_log(script_name: str, log_folder_path: Optional[str] = None):
         log_folder_path: str = 'log_folder'
 
     if os.path.exists(log_folder_path):
-        for files in os.scandir(log_folder_path):
-            os.remove(files)
+        for files in os.listdir(log_folder_path):
+            if files == f'{os.path.basename(__file__)}.log':
+                os.remove(os.path.join(os.getcwd(), log_folder_path, files))
     else:
         os.makedirs(log_folder_path)
 
     log_path = os.path.join(os.getcwd(), log_folder_path, f'{script_name}.log')
 
-    logger = logging.getLogger(script_name)
+    logger: Logger = logging.getLogger(script_name)
     logger.setLevel(logging.DEBUG)
     log_handler = logging.FileHandler(log_path)
     log_format = logging.Formatter(
-        '%(asctime)s -- %(name)s -- %(levelname)s -- %(message)s \n\n')
+        '\n %(asctime)s -- %(name)s -- %(levelname)s -- %(message)s \n')
     log_handler.setFormatter(log_format)
     logger.addHandler(log_handler)
     logger.info('Log reporting is instantiated.')
@@ -73,9 +73,9 @@ from GlobalVariable import GlobalVariable
 warnings.filterwarnings("ignore")
 
 #*******************************************************************************************************************
-def date_transforamtion(start:str, end:str) -> Tuple[str,str]:
+def date_transforamtion(start:str = None, end:str = None) -> Tuple[str,str]:
     "Tranfroms date to required formats."
-
+    
     start1 = start.split(',')[1].strip() + ' ' + start.split(',')[2].strip()
     start_date = datetime.strptime(start1, '%B %d %Y').strftime('%Y-%m-%d')
 
@@ -130,36 +130,45 @@ try:
 
         def get_events(self, url: str) -> int:
             "Returns the total number of events on the page."
+            self.browser.get(url)
+            time.sleep(5)
+            try:
+                all_events = list(filter(lambda x:x.strip() not in ['https://www.aaspa.org/hcle-certification', 'https://www.aaspa.org/events/support-staff-virtual-series-', 'https://www.aaspa.org/webinars'],
+                [*set([each.get_attribute('href') for each in self.browser.find_elements(By.CSS_SELECTOR, '.events a')] 
+                    + [each.get_attribute('href') for each in self.browser.find_elements(By.CSS_SELECTOR, '.extra-events a')])]))
+            except Exception as e:
+                self.error_msg_from_class += '\n' + str(e)
+                logger.exception('Failed------')
+            else: return all_events
+
+        def filter_events(self):
+            try:
+                sc_event_end_date =  self.browser.find_element(By.CSS_SELECTOR, '.end').text
+                sc_event_start_date = self.browser.find_element(By.CSS_SELECTOR, '.start strong').text
+                if sc_event_end_date:
+                    end =  date_transforamtion(sc_event_start_date, sc_event_end_date)[1]
+                    end_date = datetime.strptime(end, '%Y-%m-%d')
+                    if end_date < datetime.now():
+                            return 'SKIP'
+            except: pass
+
+            try:
+                date_data = self.browser.find_element(By.CSS_SELECTOR, '.subtitle').text
+                match = re.search('(\w+)\s*(\d{1,2})\s*-\s*(\d{1,2})[,]\s*(\d{4})', date_data)
+                if match:
+                    start, end = f'{match.group(1)} {match.group(2)} {match.group(4)}', f'{match.group(1)} {match.group(3)} {match.group(4)}'
+                    end_date = datetime.strptime(end, '%B %d %Y')
+                    if end_date < datetime.now():
+                        return 'SKIP'
+            except: pass
+
+
+        def get_event(self, url:str) -> NoReturn:
             try:
                 self.browser.get(url)
+                time.sleep(5)
             except Exception as e:
                 self.error_msg_from_class += '\n' + str(e)
-                logger.error(f'{self.get_event.__name__} Function failed', exc_info=True)
-            else:
-                try:
-                    all_event = self.browser.find_elements(By.CSS_SELECTOR, '.event')
-                except Exception as e:
-                    self.error_msg_from_class += '\n' + str(e)
-                    logger.error(f'{self.get_event.__name__} Function failed', exc_info=True)
-                else:
-                    return len(all_event)
-
-
-        def click_event(self, index:int) -> NoReturn:
-            "Uses selenium ActionChains to navigate to single event by index and clicks it."
-            try:
-                time.sleep(1)
-                all_events = self.browser.find_elements(By.CSS_SELECTOR, '.event')
-            except Exception as e:
-                self.error_msg_from_class += '\n' + str(e)
-                logger.error(f'{self.click_event.__name__} Function failed', exc_info=True)
-            else:
-                page = all_events[index]
-                try:
-                    ActionChains(self.browser).move_to_element(page).click(on_element=page).perform()
-                except Exception as e:
-                    self.error_msg_from_class += '\n' + str(e)
-                    logger.error(f'{self.click_event.__name__} Function failed', exc_info=True)
 
 
         def event_name(self) -> str:
@@ -169,6 +178,12 @@ try:
             except Exception as e:
                 self.error_msg_from_class += '\n' + str(e)
                 logger.error(f'{self.event_name.__name__} Function failed', exc_info=True)
+                try:
+                    sc_event_name = self.browser.find_element(By.CSS_SELECTOR, '.header-ribbon h1').text
+                except Exception as e:
+                    self.error_msg_from_class += '\n' + str(e)
+                    logger.error(f'{self.event_name.__name__} Function failed', exc_info=True)
+                else: return sc_event_name
             else:
                 return sc_event_name
 
@@ -178,17 +193,33 @@ try:
             try:
                 sc_event_start_date = self.browser.find_element(By.CSS_SELECTOR, '.start strong').text
                 sc_event_end_date =  self.browser.find_element(By.CSS_SELECTOR, '.end').text
-            except Exception as e:
+            except NoSuchElementException or Exception as e:
                 self.error_msg_from_class += '\n' + str(e)
-                logger.error(f'{self.event_name.__name__} Function failed', exc_info=True)
+                logger.error(f'{self.event_date.__name__} Function failed', exc_info=True)
+                return self.other_date()
             else:
+                if sc_event_end_date is None or sc_event_end_date is None:
+                    return self.other_date()
                 rf_date = date_transforamtion(sc_event_start_date, sc_event_end_date)
                 if rf_date:
                     return rf_date
-                else:
-                    return '', ''
+                else: return '', ''
 
-        
+        def other_date(self):
+            try:
+                date_data = self.browser.find_element(By.CSS_SELECTOR, '.subtitle').text
+            except Exception as e:
+                self.error_msg_from_class += '\n' + str(e)
+                logger.error(f'{self.other_date.__name__} Function failed', exc_info=True)
+            else:
+                if date_data:
+                    match = re.search('(\w+)\s*(\d{1,2})\s*-\s*(\d{1,2})[,]\s*(\d{4})', date_data)
+                    if match:
+                        start, end = f'{match.group(1)} {match.group(2)} {match.group(4)}', f'{match.group(1)} {match.group(3)} {match.group(4)}'
+                        return datetime.strptime(start, '%B %d %Y').strftime('%Y-%m-%d'), datetime.strptime(end, '%B %d %Y').strftime('%Y-%m-%d')
+                else: return '', ''
+
+
         def event_info(self) -> str:
             "Scrapes and return event info."
             try:
@@ -196,6 +227,13 @@ try:
             except Exception as e:
                 self.error_msg_from_class += '\n' + str(e)
                 logger.error(f'{self.event_info.__name__} Function failed', exc_info=True)
+                try:
+                    sc_event_info = self.browser.find_element(By.CSS_SELECTOR, '.inner-content p').text
+                except Exception as e:
+                    self.error_msg_from_class += '\n' + str(e)
+                    logger.error(f'{self.event_info.__name__} Function failed', exc_info=True)
+                else:
+                    return sc_event_info
             else:
                 return ' '.join(sc_event_info.split('.')[:2])
 
@@ -210,14 +248,11 @@ try:
             else:
                 match = re.search('([\d\d]+:\d\d \w\w)\s+(\(\w\w\w\))', sc_event_timing)
                 if match:
-                    return [
-                            json.dumps(
-                                dict(type='general',
-                                    Start_time=match.group(1),
+                    return json.dumps([dict(type='general',
+                                    Start_time=match.group(1).replace(' ', ''),
                                     end_time='',
-                                    timezone=match.group(2),
-                                    days='all'))
-                        ]
+                                    timezone=match.group(2).replace('(', '', 1).replace(')', '', 1),
+                                    days='all')])
                 else:
                     return ''
 
@@ -270,7 +305,7 @@ try:
                 logger.error(f'{self.event_mode.__name__} Function failed', exc_info=True)
                 try:
                     all_text = self.browser.find_element(By.CSS_SELECTOR, '.details.inner-content').text
-                except Exception as e:
+                except NoSuchElementException or Exception as e:
                     self.error_msg_from_class += '\n' + str(e)
                     logger.error(f'{self.event_mode.__name__} Function failed', exc_info=True)
                 else:
@@ -286,9 +321,21 @@ try:
                             rf_mode2 = mode2.split('|')[1].strip()
                             venue, city = rf_mode2.split(',')[0], rf_mode2.split(',')[1]
                             return venue, city, ''
+
+                    try: 
+                        venue_data = self.browser.find_element(By.CSS_SELECTOR, '.subtitle').text
+                    except NoSuchElementException or Exception as e:
+                        self.error_msg_from_class += '\n' + str(e)
+                    else:
+                        if '|' in venue_data:
+                            venue_rf = venue_data.split('|')[1].split(',')[0]
+                            return '', venue_rf, ''
+
+                        if len(venue_data.split(',')) == 3:
+                            venue_rf = venue_data.split(',')[1].split(' ')[1]
+                            return '', venue_rf, ''
             else:
                 if mode1:
-                    print('mode1----', mode1)
                     rf_mode1 = mode1.split(',')
                     location = rf_mode1[0].replace('\n', '').strip(), rf_mode1[1].replace('\n', ' ').strip()
                     venue = location[0]
@@ -323,19 +370,7 @@ try:
                 curr_tab = self.browser.current_window_handle
                 self.browser.switch_to.new_window('tab')
 
-                self.browser.get('http://google.com')
-                search = self.wait_5sec.until(
-                    EC.presence_of_element_located((By.NAME, 'q')))
-
-                search.send_keys(search_word)
-                search.send_keys(Keys.RETURN)
-
-                map_url = WebDriverWait(self.browser, 3).until(
-                    EC.element_to_be_clickable((By.LINK_TEXT, 'Maps')))
-                map_url.click()
-                time.sleep(0.5)
-                map_url = self.browser.current_url
-            
+                map_url = GlobalFunctions.get_google_map_url(search_word, self.browser)
             except Exception as e:
                 logger.exception(f'function failed')
             else:
@@ -362,16 +397,19 @@ try:
             error += '\n' + str(e)
             logger.error(f'{handler.get_events.__name__} Function failed',exc_info=True)
     # end of first part
-
+        i = 0
     # second part
-        for i in range(events):
-            print('\npage at event--', i+1)
+        for each in events:
+            i += 1
             try:
-                handler.click_event(i)
-                time.sleep(1)
+                handler.get_event(each)
+
+                past_event = handler.filter_events()
+                if past_event == 'SKIP':
+                    continue
 
                 # 1 BLOCK CODE: scraping attribute scrappedUrl
-                scrappedUrl = handler.browser.current_url
+                scrappedUrl = each
 
                 # 2 BLOCK CODE: scraping attribute eventname
                 try:
@@ -391,7 +429,6 @@ try:
                     logger.error(f'{handler.event_date.__name__} Function failed', exc_info=True)
                     startdate = ''
                     enddate = ''
-                
 
                 # 5 BLOCK CODE: scraping attribute timing
                 try:
@@ -405,7 +442,7 @@ try:
                 try:
                     eventinfo = handler.event_info()
                     if not eventinfo:
-                        eventinfo = f'Theme: {eventname.title()} + {startdate} - {enddate}'
+                        eventinfo = f'{eventname.title()}  {startdate}  {enddate}'
                 except Exception as e:
                     error += '\n' + str(e)
                     logger.error(f'{handler.event_info.__name__} Function failed', exc_info=True)
@@ -455,11 +492,23 @@ try:
                         venue = mode[0]
                         city = mode[1]
                         country = mode[2]
+
+                        if len(venue) < 20:
+                            city = venue + ' ' + city
+                            venue = '     '
+
+                        if city:
+                            if re.findall('[A-Z]{2}', city)[-1].lower() in GlobalVariable.states_abv_dict.keys():
+                                country='United States'
+                                #city = ''
+
+                        
                     elif isinstance(mode, str):
                         if mode == 'ONLINE':
                             venue = ''
                             city = ''
                             country = ''
+                    
                 except Exception as e:
                     error += '\n' + str(e)
                     logger.error(f'{handler.event_mode.__name__} Function failed', exc_info=True)
@@ -471,21 +520,20 @@ try:
                 # 19 BLOCK CODE: scraping attribute event_website
                 event_website = scrappedUrl
 
-                # 20 BLOCK CODE: scraping attribute googlePlaceUrl
-                try:
-                    if not venue:
-                        googlePlaceUrl = ''
-                    else:
-                        sc_search_word = f'{venue} {city} {country}'
-                        gg_map = handler.google_map_url(sc_search_word)
-                        googlePlaceUrl = gg_map
-                except Exception as e:
-                    error += '\n' + str(e)
-                    logger.error(f'{handler.google_map_url.__name__} Function failed', exc_info=True)
-                    googlePlaceUrl = ''
 
                 # 21 BLOCK CODE: scraping attribute ContactMail
-                ContactMail = ''
+                try:
+                    soup = bs(handler.browser.page_source,'lxml')
+                    rex=r"""(?:[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*|"(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21\x23-\x5b\x5d-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])*")@(?:(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?|\[(?:(?:(2(5[0-5]|[0-4][0-9])|1[0-9][0-9]|[1-9]?[0-9]))\.){3}(?:(2(5[0-5]|[0-4][0-9])|1[0-9][0-9]|[1-9]?[0-9])|[a-z0-9-]*[a-z0-9]:(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21-\x5a\x53-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])+)\])"""
+                    ma=[regex.search(rex,fxc).group() for fxc in ' '.join(soup.body.get_text(separator=' ').split()).lower().split() if regex.search(rex,fxc) != None]
+                    mal=[dc[:-1] if dc.endswith('.') else dc for dc in ma]
+                    con = list(dict.fromkeys(mal+ ['jennifer@aaspa.org']))
+                    if con==[] or con=='':
+                        con=['jennifer@aaspa.org']
+                except:
+                    con = ['jennifer@aaspa.org']
+
+                ContactMail = json.dumps(con, ensure_ascii=False)
 
                 # 22 BLOCK CODE: scraping attribute Speakerlist
                 try:
@@ -497,13 +545,24 @@ try:
 
                 # 23 BLOCK CODE: scraping attribute online_event
                 try:
-                    if not venue:
-                        online_event = 1
-                    else:
+                    if venue:
                         online_event = 0
+                    else:
+                        online_event = 1
                 except Exception as e:
                     error += '\n' + str(e)
                     online_event = ''
+
+                # 20 BLOCK CODE: scraping attribute googlePlaceUrl
+                try:
+                    if venue:
+                        sc_search_word = f'{venue}'
+                        googlePlaceUrl = handler.google_map_url(sc_search_word)
+                    else: googlePlaceUrl = ''
+                except Exception as e:
+                    error += '\n' + str(e)
+                    logger.error(f'{handler.google_map_url.__name__} Function failed', exc_info=True)
+                    googlePlaceUrl = ''
 
                 data_row = [
                     scrappedUrl, eventname, startdate, enddate, timing,
@@ -513,14 +572,12 @@ try:
                     ContactMail, Speakerlist, online_event]
 
                 GlobalFunctions.appendRow(file_name, data_row)
-                print('done at event--', i+1, '\n')
-                handler.back_page()
+
 
             except Exception as e:
                 print(e)
                 error += '\n' + str(e) + handler.error_msg_from_class
                 logger.error('failed', exc_info=True)
-                print('get here sometimes too')
                 continue
 
 except Exception as e:
