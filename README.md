@@ -2,7 +2,7 @@
 
 ## Project Description
 
-This project consist of multiple python files demonstrating elaborate web scraping programs that spans multiple webpages using `Selenium` and `BeautifulSoup` with `Python`. The code design is rooted in making automation elegant with little hassle on re-application on any other needs. The codebase is well documentated, logged with the Python `Logging` module and fully type-annotated using the Python3.6> `Typing Module`, i.e
+This project consist of multiple python files demonstrating elaborate web scraping programs that spans multiple webpages using `Selenium` and `BeautifulSoup` with `Python`. The code design is rooted in making automation elegant with little hassle on re-application on any other needs. The codebase is well documentated, logged with the Python `Logging` in-built module and fully type-annotated using the Python3.6> `Typing Module`, i.e
 
 > **from typing import List, Dict, Optional, Union, Tuple, Callable, Sequence, Noreturn**
 
